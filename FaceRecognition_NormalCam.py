@@ -37,9 +37,20 @@ class Face_Recognition():
 
 class Camera():
 	def __init__(self):
+		self.index=0
+		self.arr=[]
+		self.i=10
+		while self.i > 0:
+			cap=cv2.VideoCapture(self.index)
+			if cap.read()[0]:
+				self.arr.append(self.index)
+				cap.release()
+			self.index+=1
+			self.i-=1
+		print(self.arr)
 		self.cap=cv2.VideoCapture(2)
 		self.FPS=self.cap.get(cv2.CAP_PROP_FPS)
-		print(f"Initizalied Camera at {self.FPS}")
+		print(f"Initizalied Camera index {self.arr[-1]} at {self.FPS}")
 
 	def getFrame(self):
 		ret,img=self.cap.read()

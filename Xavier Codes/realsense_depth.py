@@ -32,5 +32,9 @@ class DepthCamera:
             return False, None, None
         return True, depth_image, color_image
 
+    def getDepth(self,x,y):
+        depth_frame=frames.get_depth_frame()
+        return depth_frame[int(x),int(y)]
+
     def release(self):
         self.pipeline.stop()

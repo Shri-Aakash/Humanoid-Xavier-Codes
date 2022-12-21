@@ -5,6 +5,7 @@ from model import NeuralNet
 from nltkUtils import tokenize,stem,bagOfWords
 from FaceRecognition_NormalCam import Camera,Face_Recognition
 import cv2
+from QRDetection import QR_Code_Detection
 name =''
 
 class ChatBot():
@@ -13,6 +14,7 @@ class ChatBot():
     FILE='model2.pth'
     data=torch.load(FILE)
     botName='Alpha'
+    #qr=QR_Code_Detection()
     def __init__(self):
         #c1=Camera()
         #fr=Face_Recognition()
