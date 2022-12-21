@@ -3,7 +3,7 @@ import usb.core
 import usb.util
 import time
 import socket
-IP="10.4.1.45"
+IP="192.168.1.100"
 PORT=40000
 ADDR=(IP,PORT)
  
@@ -36,8 +36,9 @@ if dev:
             if Mic_tuning.direction==angle:
                 continue
             else:
-                Connection(Mic_tuning.direction)
+                #Connection(Mic_tuning.direction)
                 angle=Mic_tuning.direction
+                time.sleep(3)
             time.sleep(1)
         except KeyboardInterrupt:
             break

@@ -1,20 +1,46 @@
 from __future__ import division
-import pyaudio
-from google.cloud import speech
-import os
-import sys
 import re
-import json
+import sys
+from google.cloud import speech
+import pyaudio
 from six.moves import queue
-from Chat import ChatBot
-from FaceRecognition_NormalCam import Camera,Face_Recognition
+from tuning import Tuning
+import usb.core
+import usb.util
+import time
+import socket
+#import threading
 
 SPEAKER_RATE = 44100
 SPEAKER_CHANNELS = 1
 SPEAKER_WIDTH = 2
 SPEAKER_INDEX = 0
 CHUNK = 8192
-
+IP="10.4.1.45"
+PORT=40000
+ADDR=(IP,PORT)
+dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+# def Connection(ang):
+#     print("Server Starting")
+#     client=socket.socket(family=socket.AF_INET,type=socket.SOCK_STREAM)
+#     client.connect(ADDR)
+#     #file=open('data/Message.txt','r')
+#     data=str(ang)
+    
+#     client.send('Message.txt'.encode('utf-8'))
+#     msg=client.recv(1024).decode('utf-8')
+#     print(f'Server: {msg}')
+    
+#     client.send(data.encode('utf-8'))
+#     msg=client.recv(1024).decode('utf-8')
+#     print(f'Server: {msg}')
+    
+#     #file.close()
+#     client.close()
+def getAngle():
+	Mic_tuning=Tuning(dev)
+	angle=Mic_tuning.direction
+	return angle
 
 class MicrophoneStream(object):
     """Opens a recording stream as a generator yielding the audio chunks."""
@@ -132,13 +158,16 @@ def listen_print_loop(responses):
 
             # Exit recognition if any of the transcribed phrases could be
             # one of our keywords.
-            #if re.search(r"\b(exit|quit)\b", transcript, re.I):
-            #    print("Exiting..")
-            #    break
-            x=cb.Chat(transcript+overwrite_chars,camera,fr)
-            if x=='exit':
+            if re.search(r"\b(Hi Alpha|Hey Alpha|Alpha)\b",transcript,re.I):
+            	angle=getAngle()
+            	print(angle)
+
+            if re.search(r"\b(exit|quit)\b", transcript, re.I):
+                print("Exiting..")
                 break
+
             num_chars_printed = 0
+
 
 
 #os.environ['GOOGLE_CREDENTIALS']='/home/aakash/Desktop/GCP_STT_Cred.json'
@@ -149,11 +178,11 @@ def main():
     # for a list of supported languages.
     language_code = "en-IN"  # a BCP-47 language tag
 
-    client = speech.SpeechClient.from_service_account_file('/home/irp2022/Desktop')
+    client = speech.SpeechClient.from_service_account_file('/home/irp2022/Desktop/GCP_STT_Cred.json')
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=SPEAKER_RATE,
-        audio_channel_count=SPEAKER_CHANNELS,
+        audio_channel_count=1,
         language_code='en-IN'
     )
 
@@ -173,9 +202,4 @@ def main():
         # Now, put the transcription responses to use.
         listen_print_loop(responses)
 
-
-if __name__ == "__main__":
-    cb=ChatBot()
-    camera=Camera()
-    fr=Face_Recognition()
-    main()
+main()
