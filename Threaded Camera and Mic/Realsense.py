@@ -4,19 +4,79 @@ from google.cloud import speech
 import os
 import sys
 import re
-import json
 from six.moves import queue
-from Chat import ChatBot
-from FaceRecognition_NormalCam import Camera,Face_Recognition
+import pyrealsense2.pyrealsense2 as rs
+import numpy as np
+import threading
+import cv2
 
-SPEAKER_RATE = 44100
-SPEAKER_CHANNELS = 1
-SPEAKER_WIDTH = 2
-SPEAKER_INDEX = 0
-CHUNK = 8192
+RESPEAKER_RATE = 16000
+RESPEAKER_CHANNELS = 6 # change base on firmwares, 1_channel_firmware.bin as 1 or 6_channels_firmware.bin as 6
+RESPEAKER_WIDTH = 2
+# run getDeviceInfo.py to get index
+RESPEAKER_INDEX = 7  # refer to input device id
+CHUNK = 1024
+RECORD_SECONDS = 5
+WAVE_OUTPUT_FILENAME = "output.wav"
+
+class DepthCamera:
+    def __init__(self):
+        # Configure depth and color streams
+        self.width=1280
+        self.height=720
+        self.pipeline = rs.pipeline()
+        config = rs.config()
+
+        # Get device product line for setting a supporting resolution
+        pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
+        pipeline_profile = config.resolve(pipeline_wrapper)
+        device = pipeline_profile.get_device()
+        device_product_line = str(device.get_info(rs.camera_info.product_line))
+
+        config.enable_stream(rs.stream.depth, self.width, self.height, rs.format.z16, 30)
+        config.enable_stream(rs.stream.color, self.width, self.height, rs.format.bgr8, 30)
+
+        # Start streaming
+        self.pipeline.start(config)
+        self.started=True
 
 
-class MicrophoneStream(object):
+    def get_frame(self):
+        frames = self.pipeline.wait_for_frames()
+        depth_frame = frames.get_depth_frame()
+        color_frame = frames.get_color_frame()
+
+        depth_image = np.asanyarray(depth_frame.get_data())
+        color_image = np.asanyarray(color_frame.get_data())
+        if not depth_frame or not color_frame:
+            return False, None, None
+        return True, depth_image, color_image
+
+    def show(self):
+        while True:
+            frames=self.pipeline.wait_for_frames()
+            #depth_frame = frames.get_depth_frame()
+            color_frame = frames.get_color_frame()
+            color_image=np.asanyarray(color_frame.get_data())
+            #depth_image=np.asanyarray(depth_frame.get_data())
+            cv2.imshow('Color Frame',color_image)
+
+    def start(self):
+        video_thread = threading.Thread(target=self.show)
+        video_thread.start()
+
+    def read(self):
+        with self.read_lock:
+            color_image=np.asanyarray(self.color_frame.get_data())
+            depth_image=np.asanyarray(self.depth_frame.get_data())
+        return True,color_image,depth_image
+
+    def release(self):
+        self.pipeline.stop()
+        self.started=False
+
+
+class MicrophoneStream:
     """Opens a recording stream as a generator yielding the audio chunks."""
 
     def __init__(self, rate, chunk):
@@ -33,7 +93,7 @@ class MicrophoneStream(object):
             format=pyaudio.paInt16,
             # The API currently only supports 1-channel (mono) audio
             # https://goo.gl/z757pE
-            channels=RESPEAKER_CHANNELS,
+            channels=6,
             rate=self._rate,
             input=True,
             frames_per_buffer=self._chunk,
@@ -132,36 +192,27 @@ def listen_print_loop(responses):
 
             # Exit recognition if any of the transcribed phrases could be
             # one of our keywords.
-            #if re.search(r"\b(exit|quit)\b", transcript, re.I):
-            #    print("Exiting..")
-            #    break
-            x=cb.Chat(transcript+overwrite_chars,camera,fr)
-            if x=='exit':
+            if re.search(r"\b(exit|quit)\b", transcript, re.I):
+                print("Exiting..")
                 break
+
             num_chars_printed = 0
 
-
-os.environ['GOOGLE_CREDENTIALS']='/home/aakash/Desktop/GCP_STT_Cred.json'
-
-
-def main():
-    # See http://g.co/cloud/speech/docs/languages
-    # for a list of supported languages.
+def startMic():
     language_code = "en-IN"  # a BCP-47 language tag
 
     client = speech.SpeechClient.from_service_account_file('/home/aakash/Desktop/GCP_STT_Cred.json')
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-        sample_rate_hertz=SPEAKER_RATE,
-        audio_channel_count=SPEAKER_CHANNELS,
+        sample_rate_hertz=RESPEAKER_RATE,
+        audio_channel_count=RESPEAKER_CHANNELS,
         language_code='en-IN'
     )
 
     streaming_config = speech.StreamingRecognitionConfig(
         config=config, interim_results=True
     )
-
-    with MicrophoneStream(SPEAKER_RATE, CHUNK) as stream:
+    with MicrophoneStream(RESPEAKER_RATE, CHUNK) as stream:
         audio_generator = stream.generator()
         requests = (
             speech.StreamingRecognizeRequest(audio_content=content)
@@ -173,9 +224,32 @@ def main():
         # Now, put the transcription responses to use.
         listen_print_loop(responses)
 
+if __name__=='__main__':
+    # language_code = "en-IN"  # a BCP-47 language tag
 
-if __name__ == "__main__":
-    cb=ChatBot()
-    camera=Camera()
-    fr=Face_Recognition()
-    main()
+    # client = speech.SpeechClient.from_service_account_file('/home/aakash/Desktop/GCP_STT_Cred.json')
+    # config = speech.RecognitionConfig(
+    #     encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+    #     sample_rate_hertz=RESPEAKER_RATE,
+    #     audio_channel_count=RESPEAKER_CHANNELS,
+    #     language_code='en-IN'
+    # )
+
+    # streaming_config = speech.StreamingRecognitionConfig(
+    #     config=config, interim_results=True
+    # )
+        # with MicrophoneStream(RESPEAKER_RATE, CHUNK) as stream:
+    #     audio_generator = stream.generator()
+    #     requests = (
+    #         speech.StreamingRecognizeRequest(audio_content=content)
+    #         for content in audio_generator
+    #     )
+
+    #     responses = client.streaming_recognize(streaming_config, requests)
+
+    #     # Now, put the transcription responses to use.
+    #     listen_print_loop(responses)
+    dc=DepthCamera()
+    while True:
+        _,colorImg,depthImg=dc.get_frame()
+        cv2.imshow('Color Frame',colorImg)
