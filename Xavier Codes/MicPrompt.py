@@ -11,11 +11,11 @@ import time
 import socket
 #import threading
 
-SPEAKER_RATE = 44100
-SPEAKER_CHANNELS = 1
+SPEAKER_RATE = 16000
+SPEAKER_CHANNELS = 6
 SPEAKER_WIDTH = 2
-SPEAKER_INDEX = 0
-CHUNK = 8192
+SPEAKER_INDEX = 24
+CHUNK = 1024
 IP="10.4.1.45"
 PORT=40000
 ADDR=(IP,PORT)
@@ -59,7 +59,7 @@ class MicrophoneStream(object):
             format=pyaudio.paInt16,
             # The API currently only supports 1-channel (mono) audio
             # https://goo.gl/z757pE
-            channels=1,
+            channels=6,
             rate=self._rate,
             input=True,
             frames_per_buffer=self._chunk,
@@ -182,7 +182,7 @@ def main():
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=SPEAKER_RATE,
-        audio_channel_count=1,
+        audio_channel_count=6,
         language_code='en-IN'
     )
 

@@ -5,20 +5,26 @@ import os
 import sys
 import re
 from six.moves import queue
-import pyrealsense2.pyrealsense2 as rs
+import pyrealsense2 as rs
+import usb.core
+import usb.util
 import numpy as np
 import threading
 import cv2
+import time
+from tuning import Tuning
 
+dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
 RESPEAKER_RATE = 16000
 RESPEAKER_CHANNELS = 6 # change base on firmwares, 1_channel_firmware.bin as 1 or 6_channels_firmware.bin as 6
 RESPEAKER_WIDTH = 2
 # run getDeviceInfo.py to get index
-RESPEAKER_INDEX = 7  # refer to input device id
+RESPEAKER_INDEX = 0  # refer to input device id
 CHUNK = 1024
 RECORD_SECONDS = 5
 WAVE_OUTPUT_FILENAME = "output.wav"
-
+angle=None
+video_thread=None
 class DepthCamera:
     def __init__(self):
         # Configure depth and color streams
@@ -33,8 +39,8 @@ class DepthCamera:
         device = pipeline_profile.get_device()
         device_product_line = str(device.get_info(rs.camera_info.product_line))
 
-        config.enable_stream(rs.stream.depth, self.width, self.height, rs.format.z16, 30)
-        config.enable_stream(rs.stream.color, self.width, self.height, rs.format.bgr8, 30)
+        config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)
+        config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30)
 
         # Start streaming
         self.pipeline.start(config)
@@ -54,29 +60,27 @@ class DepthCamera:
 
     def show(self):
         while True:
-            frames=self.pipeline.wait_for_frames()
-            #depth_frame = frames.get_depth_frame()
-            color_frame = frames.get_color_frame()
-            color_image=np.asanyarray(color_frame.get_data())
-            #depth_image=np.asanyarray(depth_frame.get_data())
-            cv2.imshow('Color Frame',color_image)
+            ret,depthFrame,colorFrame=self.get_frame()
+            cv2.imshow('Color Frame',colorFrame)
+            if cv2.waitKey(1) & 0xFF==ord('q'):
+                break
 
     def start(self):
+        global video_thread
         video_thread = threading.Thread(target=self.show)
         video_thread.start()
 
     def read(self):
-        with self.read_lock:
-            color_image=np.asanyarray(self.color_frame.get_data())
-            depth_image=np.asanyarray(self.depth_frame.get_data())
+        color_image=np.asanyarray(self.color_frame.get_data())
+        depth_image=np.asanyarray(self.depth_frame.get_data())
         return True,color_image,depth_image
 
     def release(self):
+        global video_thread
         self.pipeline.stop()
         self.started=False
-
-
-class MicrophoneStream:
+        video_thread.join()
+class MicrophoneStream(object):
     """Opens a recording stream as a generator yielding the audio chunks."""
 
     def __init__(self, rate, chunk):
@@ -143,7 +147,6 @@ class MicrophoneStream:
 
             yield b"".join(data)
 
-
 def listen_print_loop(responses):
     """Iterates through server responses and prints them.
 
@@ -159,6 +162,7 @@ def listen_print_loop(responses):
     the next result to overwrite it, until the response is a final one. For the
     final one, print a newline to preserve the finalized transcription.
     """
+    global angle
     num_chars_printed = 0
     for response in responses:
         if not response.results:
@@ -192,26 +196,41 @@ def listen_print_loop(responses):
 
             # Exit recognition if any of the transcribed phrases could be
             # one of our keywords.
+            if re.search(r"\b(Hi Alpha|Hey Alpha|Alpha)\b",transcript,re.I):
+                print(angle)
+
             if re.search(r"\b(exit|quit)\b", transcript, re.I):
                 print("Exiting..")
                 break
 
             num_chars_printed = 0
 
-def startMic():
+
+
+def getAngle():
+    global angle
+    while True:
+        Mic_tuning=Tuning(dev)
+        angle=Mic_tuning.direction
+if __name__=='__main__':
+    dc=DepthCamera()
+    dc.start()
+    angle_thread=threading.Thread(target=getAngle)
+    angle_thread.start()
     language_code = "en-IN"  # a BCP-47 language tag
 
-    client = speech.SpeechClient.from_service_account_file('/home/aakash/Desktop/GCP_STT_Cred.json')
+    client = speech.SpeechClient.from_service_account_file('/home/irp2022/Desktop/GCP_STT_Cred.json')
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=RESPEAKER_RATE,
-        audio_channel_count=RESPEAKER_CHANNELS,
+        audio_channel_count=6,
         language_code='en-IN'
     )
 
     streaming_config = speech.StreamingRecognitionConfig(
         config=config, interim_results=True
     )
+
     with MicrophoneStream(RESPEAKER_RATE, CHUNK) as stream:
         audio_generator = stream.generator()
         requests = (
@@ -223,33 +242,5 @@ def startMic():
 
         # Now, put the transcription responses to use.
         listen_print_loop(responses)
-
-if __name__=='__main__':
-    # language_code = "en-IN"  # a BCP-47 language tag
-
-    # client = speech.SpeechClient.from_service_account_file('/home/aakash/Desktop/GCP_STT_Cred.json')
-    # config = speech.RecognitionConfig(
-    #     encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-    #     sample_rate_hertz=RESPEAKER_RATE,
-    #     audio_channel_count=RESPEAKER_CHANNELS,
-    #     language_code='en-IN'
-    # )
-
-    # streaming_config = speech.StreamingRecognitionConfig(
-    #     config=config, interim_results=True
-    # )
-        # with MicrophoneStream(RESPEAKER_RATE, CHUNK) as stream:
-    #     audio_generator = stream.generator()
-    #     requests = (
-    #         speech.StreamingRecognizeRequest(audio_content=content)
-    #         for content in audio_generator
-    #     )
-
-    #     responses = client.streaming_recognize(streaming_config, requests)
-
-    #     # Now, put the transcription responses to use.
-    #     listen_print_loop(responses)
-    dc=DepthCamera()
-    while True:
-        _,colorImg,depthImg=dc.get_frame()
-        cv2.imshow('Color Frame',colorImg)
+    dc.release()
+    angle_thread.join()
