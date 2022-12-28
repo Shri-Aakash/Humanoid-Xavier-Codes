@@ -48,6 +48,7 @@ class ChatBot():
                         name=fr.findFace(eF)
                         cv2.putText(frame,name,(50,50),cv2.FONT_HERSHEY_COMPLEX,1,(0,0,255),2)
                     cv2.imshow('Face Recognition',frame)
+                    cv2.waitKey(0)
                     if name=='Un-identified Face':
                         if self.tag == "follow me":
                             print(f"{ChatBot.botName}: Sorry your face is not in the database and thus i can't follow you.")
