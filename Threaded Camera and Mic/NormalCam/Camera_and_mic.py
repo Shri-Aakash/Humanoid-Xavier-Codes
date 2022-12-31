@@ -37,7 +37,7 @@ video_thread=None
 audioThread=None
 QR_Thread=None
 angleThread=None
-stop_event=threading.Event()
+stop_event=False
 #################################################################################################################################
 HFOV=90
 VFOV=65
@@ -204,10 +204,11 @@ def calcAngle(x,y):
     return m.sqrt(hangle**2+vangle**2)
 
 
-def DetectQR(stop_event):
+def DetectQR():
     global QRangle
     global QR_Thread
-    while not stop_event.is_set():
+    global stop_event
+    while not stop_event:
         frame1=camera.getFrame()
         try:
             qr.preprocess(frame1)
@@ -274,11 +275,12 @@ def listen_print_loop(responses):
             x=cb.Chat(transcript+overwrite_chars,camera.getFrame(),fr)
             if x=='QR':
                 time.sleep(3)
+                stop_event=False 
                 QR_Thread.start()
             if x=='Stop QR':
+                stop_event=True
                 if QR_Thread.is_alive():
-                    stop_event.set()
-                    print("Closed QR Thread")                
+                    print("Closed QR Thread")             
             if x=='Location':
                 print('Location')
             if x=='exit':
@@ -320,7 +322,7 @@ if __name__=='__main__':
     qr=QR_Code_Detection()
     #audioThread=threading.Thread(target=audioMain)
     #angleThread=threading.Thread(target=getAngle)
-    QR_Thread=threading.Thread(target=DetectQR,args=(stop_event,))
+    QR_Thread=threading.Thread(target=DetectQR)
     audioMain()
     camera.stop()
     if QR_Thread.is_alive():
