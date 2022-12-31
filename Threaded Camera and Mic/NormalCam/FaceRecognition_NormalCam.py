@@ -35,18 +35,18 @@ class Face_Recognition():
         encodeImg=face_recognition.face_encodings(img,faces)
         return (faces,encodeImg)
 
-class Camera():
-	def __init__(self):
-		self.cap=cv2.VideoCapture(2)
-		self.FPS=self.cap.get(cv2.CAP_PROP_FPS)
-		print(f"Initizalied Camera at {self.FPS}")
+# class Camera():
+# 	def __init__(self):
+# 		self.cap=cv2.VideoCapture(2)
+# 		self.FPS=self.cap.get(cv2.CAP_PROP_FPS)
+# 		print(f"Initizalied Camera at {self.FPS}")
 
-	def getFrame(self):
-		ret,img=self.cap.read()
-		return img
+# 	def getFrame(self):
+# 		ret,img=self.cap.read()
+# 		return img
 
-	def release(self):
-		self.cap.release()
+# 	def release(self):
+# 		self.cap.release()
 
 
 if __name__=='__main__':

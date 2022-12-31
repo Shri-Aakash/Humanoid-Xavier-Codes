@@ -28,6 +28,20 @@
       ]
     },
     {
+      "tag": "Reached",
+      "patterns": [
+        "We are here",
+        "We have Reached",
+        "this is the place",
+        "this is it",
+        "over here"
+      ],
+      "responses": [
+        "okay.Whats over here?",
+        " "
+      ]
+    },
+    {
       "tag":"follow me",
       "patterns":[
         "Come with me",

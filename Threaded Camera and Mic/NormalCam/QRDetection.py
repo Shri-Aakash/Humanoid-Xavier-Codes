@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
-from FaceRecognition_NormalCam import Camera
-#from realsense_depth import *
+#from FaceRecognition_NormalCam import Camera
+# from realsense_depth import *
 
 
 class QR_Code_Detection():
@@ -28,6 +28,7 @@ class QR_Code_Detection():
 		QR_Code_Detection.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
 		QR_Code_Detection.net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 		self.classes=['QR']
+		self.centre=None
 
 	def drawlabel(self,im, label, x, y):
 		text_size = cv2.getTextSize(label, QR_Code_Detection.FONT_FACE, QR_Code_Detection.FONT_SCALE, QR_Code_Detection.THICKNESS)
@@ -92,6 +93,9 @@ class QR_Code_Detection():
 			self.drawlabel(input_image, self.label, self.left, self.top)
 		return input_image
 
+	def getCentre(self):
+		return self.centre
+
 
 
 if __name__=='__main__':
@@ -102,6 +106,8 @@ if __name__=='__main__':
 		qr.preprocess(frame1)
 		processedImg=qr.postProcess(frame1)
 		cv2.imshow('QR Code Detection',processedImg)
+		centre=qr.getCentre()
+		print(centre)
 		if cv2.waitKey(1) & 0xFF==ord('q'):
 			break
 	camera.release()

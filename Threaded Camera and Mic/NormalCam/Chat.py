@@ -3,9 +3,8 @@ import json
 import torch
 from model import NeuralNet
 from nltkUtils import tokenize,stem,bagOfWords
-from FaceRecognition_NormalCam import Camera,Face_Recognition
+from FaceRecognition_NormalCam import Face_Recognition
 import cv2
-from QRDetection import QR_Code_Detection
 name =''
 
 class ChatBot():
@@ -41,6 +40,14 @@ class ChatBot():
         if self.prob.item() > 0.75:
             if self.tag=='goodbye':
                 return 'exit'
+
+            if self.tag=='Reached':
+                return 'stopQR'
+            if self.tag=='places':
+                for intent in ChatBot.intents['intents']:
+                    if self.tag == intent["tag"]:
+                        print(f"{ChatBot.botName}: {random.choice(intent['responses'])}")
+                        return 'Location'
             elif self.tag == "follow me" or self.tag == "items":
                 global name
                 faces,encodeImg=fr.getFaces(frame)
@@ -48,12 +55,12 @@ class ChatBot():
                     for eF,fL in zip(encodeImg,faces):
                         name=fr.findFace(eF)
                         cv2.putText(frame,name,(50,50),cv2.FONT_HERSHEY_COMPLEX,1,(0,0,255),2)
-                    cv2.imshow('Face Recognition',frame)
+                    #cv2.imshow('Face Recognition',frame)
                     if name=='Un-identified Face':
                         if self.tag == "follow me":
                             print(f"{ChatBot.botName}: Sorry your face is not in the database and thus i can't follow you.")
                         else:
-                            print(f"{ChatBot.botName}: Sorry your this feature is only for faculty.")
+                            print(f"{ChatBot.botName}: Sorry this feature is only for faculty.")
                     else:
                         for intent in ChatBot.intents['intents']:
                             if self.tag == intent['tag']:
