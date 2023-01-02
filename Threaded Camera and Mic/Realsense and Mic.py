@@ -6,15 +6,26 @@ import sys
 import re
 from six.moves import queue
 import pyrealsense2 as rs
+from gtts import gTTS
 import usb.core
 import usb.util
 import numpy as np
 import threading
+import math as m
+import usb.core
+import usb.util
 import cv2
 import time
+import socket
+from FaceRecognition import Face_Recognition
+from QRDetection import QR_Code_Detection
+from Chat import ChatBot
 from tuning import Tuning
-
+#############################################Initialized ReSpeaker Mic#########################################################
 dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+##############################################################################################################################
+
+##############################################ReSpeaker Parameters############################################################
 RESPEAKER_RATE = 16000
 RESPEAKER_CHANNELS = 6 # change base on firmwares, 1_channel_firmware.bin as 1 or 6_channels_firmware.bin as 6
 RESPEAKER_WIDTH = 2
@@ -22,9 +33,90 @@ RESPEAKER_WIDTH = 2
 RESPEAKER_INDEX = 0  # refer to input device id
 CHUNK = 1024
 RECORD_SECONDS = 5
-WAVE_OUTPUT_FILENAME = "output.wav"
+Output_FN = "output.mp3"
+###############################################################################################################################
+
+####################################################### Different values for caliberation #######################################
 angle=None
+QRangle=None
+distance=None
+################################################################################################################################
+
+####################################################### Camera FOV #############################################################
+HFOV=90
+VFOV=65
+################################################################################################################################
+
+####################################################### Different threads for running different processes#####################
 video_thread=None
+audioThread=None
+angleThread=None
+stop_event=False
+##############################################################################################################################
+
+###############Function for Communication between Jetson Nano and Jetson Xavier###############
+def Connection(l):
+    print("Server Starting")
+    client=socket.socket(family=socket.AF_INET,type=socket.SOCK_STREAM)
+    client.connect(ADDR)
+    #file=open('data/Message.txt','r')
+    if len(l)==2:
+        if l[0]=='Mic':
+            data=str(l[1])
+            client.send('Message_Mic.txt'.encode('utf-8'))
+            msg=client.recv(1024).decode('utf-8')
+            print(f'Server: {msg}')
+            client.send(data.encode('utf-8'))
+            msg=client.recv(1024).decode('utf-8')
+            print(f'Server: {msg}')
+
+    if len(l)==3:
+        if l[0]=='QR':
+        data=' '.join(l[1:])
+        client.send('Message_Cam.txt'.encode('utf-8'))
+        msg=client.recv(1024).decode('utf-8')
+        print(f'Server: {msg}')
+        client.send(data.encode('utf-8'))
+        msg=client.recv(1024).decode('utf-8')
+        print(f'Server: {msg}')
+    
+    #file.close()
+    client.close()
+###############################################################################################
+
+######################################Set of Functions for detecting QR and calculating angle and distance to centre####################
+def calcAngle(x,y):
+    hangle=((x-640)/(640))*(HFOV/2)
+    vangle=((y-360)/(360))*(VFOV/2)
+    return m.sqrt(hangle**2+vangle**2)
+
+
+def DetectQR():
+    global QRangle
+    while True:
+        ret,color_frame,depth_frame=dc.get_frame()
+        try:
+            qr.preprocess(color_frame)
+            processedImg=qr.postProcess(color_frame)
+            centre=qr.getCentre()
+            if centre is not None:
+                QRangle=calcAngle(centre[0],centre[1])
+                cv2.circle(color_frame,centre,4,(0,255,255),2)
+                print(QRangle)
+                distance=depth_frame[int(centre[1]),int(centre[0])]
+                if distance<0.1:
+                    Connection(['QR',0,0])
+                    break
+                else:
+                    if round(QRangle)!=0:
+                        Connection(['QR',1,0])
+                    else:
+                        Connection(['QR',0,1])
+        except:
+            pass
+#######################################################################################################################################
+
+################################################Class For IntelRealsense Depth Camera###########################################
 class DepthCamera:
     def __init__(self):
         # Configure depth and color streams
@@ -58,6 +150,17 @@ class DepthCamera:
             return False, None, None
         return True, depth_image, color_image
 
+    def Get_color_frame(self):
+        frames = self.pipeline.wait_for_frames()
+        depth_frame = frames.get_depth_frame()
+        color_frame = frames.get_color_frame()
+
+        depth_image = np.asanyarray(depth_frame.get_data())
+        color_image = np.asanyarray(color_frame.get_data())
+        if not depth_frame or not color_frame:
+            return False, None, None
+        return color_image
+
     def show(self):
         while True:
             ret,depthFrame,colorFrame=self.get_frame()
@@ -80,6 +183,10 @@ class DepthCamera:
         self.pipeline.stop()
         self.started=False
         video_thread.join()
+###########################################################################################################################
+
+
+###########################################Class For initializing Microphone using pyaudio####################################
 class MicrophoneStream(object):
     """Opens a recording stream as a generator yielding the audio chunks."""
 
@@ -146,7 +253,10 @@ class MicrophoneStream(object):
                     break
 
             yield b"".join(data)
+###############################################################################################################################
 
+
+###################################################Function for calling GCP STT API using gRPC#################################
 def listen_print_loop(responses):
     """Iterates through server responses and prints them.
 
@@ -198,25 +308,52 @@ def listen_print_loop(responses):
             # one of our keywords.
             if re.search(r"\b(Hi Alpha|Hey Alpha|Alpha)\b",transcript,re.I):
                 print(angle)
+                Connection(['Mic',angle])
 
-            if re.search(r"\b(exit|quit)\b", transcript, re.I):
-                print("Exiting..")
-                break
-
+            x=cb.Chat(transcript+overwrite_chars,dc.Get_color_frame(),fr)
+            if x[0]=='':
+                if x[1]=='exit':
+                    break
+                if x[1]=='stopQR':
+                    QR_Thread.join()
+            else:
+                if x[1]=='':
+                    tts=gTTS(x[0],lang='en')
+                    tts.save(Output_FN)
+                    os.system("mpg123 "+Output_FN)
+                    time.sleep(5)
+                if x[1]=='QR':
+                    tts=gTTS(x[0],lang='en')
+                    tts.save(Output_FN)
+                    os.system("mpg123 "+Output_FN)
+                    time.sleep(5) 
+                    DetectQR()
+                if x[1]=='Location':
+                    tts=gTTS(x[0],lang='en')
+                    tts.save(Output_FN)
+                    os.system("mpg123 "+Output_FN)
+                    time.sleep(5)              
+                if x[1]=='-':
+                    tts=gTTS(x[0],lang='en')
+                    tts.save(Output_FN)
+                    os.system("mpg123 "+Output_FN)
+                    time.sleep(5)
+                if x[1]=='Face not visible':
+                    tts=gTTS(x[0],lang='en')
+                    tts.save(Output_FN)
+                    os.system("mpg123 "+Output_FN)
+                    time.sleep(5)
+                if x[1]=='NaN':
+                    tts=gTTS(x[0],lang='en')
+                    tts.save(Output_FN)
+                    os.system("mpg123 "+Output_FN)
+                    time.sleep(5)
             num_chars_printed = 0
+##############################################################################################################################
 
 
-
-def getAngle():
-    global angle
-    while True:
-        Mic_tuning=Tuning(dev)
-        angle=Mic_tuning.direction
-if __name__=='__main__':
-    dc=DepthCamera()
-    dc.start()
-    angle_thread=threading.Thread(target=getAngle)
-    angle_thread.start()
+############################################Function for Configuring STT parameters and taking audio through Mic#############
+def audioMain():
     language_code = "en-IN"  # a BCP-47 language tag
 
     client = speech.SpeechClient.from_service_account_file('/home/irp2022/Desktop/GCP_STT_Cred.json')
@@ -242,5 +379,13 @@ if __name__=='__main__':
 
         # Now, put the transcription responses to use.
         listen_print_loop(responses)
+###########################################################################################################################
+
+if __name__=='__main__':
+    dc=DepthCamera()
+    dc.start()
+    angle_thread=threading.Thread(target=getAngle)
+    angle_thread.start()
+    audio_thread=threading.Thread(target=audioMain)
     dc.release()
     angle_thread.join()

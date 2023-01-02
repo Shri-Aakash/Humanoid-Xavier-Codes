@@ -1,0 +1,110 @@
+{
+  "intents": [
+    {
+      "tag":"About Robot",
+      "patterns":[
+        "Who are you?",
+        "Tell me about yourself",
+        "Who made you?",
+        "Where are you from?"
+      ],
+      "responses":[
+        "Hi, my name is Alpha and i am a humanoid robot created by the department of Automation & Robotics,KLE Technological University.I am here to assist you in ay way possible from guiding you to giving information about anything you might be having problems with."
+      ]
+    },
+    {
+      "tag": "greeting",
+      "patterns": [
+        "Hi",
+        "Hey",
+        "How are you",
+        "Hello",
+        "Good day"
+      ],
+      "responses": [
+        "Hey :-)",
+        "Hi there, what can I do for you?",
+        "Hi there, how can I help?"
+      ]
+    },
+    {
+      "tag": "Reached",
+      "patterns": [
+        "We are here",
+        "We have Reached",
+        "this is the place",
+        "this is it",
+        "over here"
+      ],
+      "responses": [
+        "okay.Whats over here?",
+        " "
+      ]
+    },
+    {
+      "tag":"follow me",
+      "patterns":[
+        "Come with me",
+        "Follow me",
+        "I want to show you something"
+      ],
+      "responses":[
+        "Sure just show me your QR",
+        "Allright turnaround and show me the QR",
+        "Allow me to scan the QR"
+      ]
+    },
+    {
+      "tag": "goodbye",
+      "patterns": ["Bye", "See you later", "Goodbye"],
+      "responses": [
+        "See you later, thanks for visiting",
+        "Have a nice day",
+        "Bye! Come back again soon."
+      ]
+    },
+    {
+      "tag": "thanks",
+      "patterns": ["Thanks", "Thank you", "That's helpful", "Thank's a lot!"],
+      "responses": ["Happy to help!", "Any time!", "My pleasure"]
+    },
+    {
+      "tag": "items",
+      "patterns": [
+        "Can you please get me this from the office?",
+        "The projector remote is not working",
+        "Can you please carry this?"
+      ],
+      "responses": [
+        "Let me get that for you!",
+        "I'll go get the item from the office! Just wait here."
+      ]
+    },
+    {
+      "tag": "places",
+      "patterns": [
+        "I can't find the place",
+        "Can you please tell me where to go?",
+        "How do i go to the main building?",
+        "Where is the admission office?"
+      ],
+      "responses": [
+        "Please follow me i'll show you the way",
+        "Just come with me and i'll take you there"
+      ]
+    },
+    {
+      "tag": "delivery",
+      "patterns": [
+        "This package is for the HOD",
+        "I have come to deliver the package.",
+        "Here is your package"
+      ],
+      "responses": [
+        "Thank you! Please come this way to give the package",
+        "Sure right this way please",
+        "Keep it just over here"
+      ]
+    }
+  ]
+}
